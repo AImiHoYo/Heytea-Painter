@@ -1,7 +1,9 @@
 # Heytea-Painter
 Automatically add drawing elements by extracting edges.  
-一键启动包：https://pan.quark.cn/s/b90824f581b1  
+一键启动包v2(最新)：https://pan.quark.cn/s/6ae181319749  
+一键启动包v1：https://pan.quark.cn/s/b90824f581b1  
 # 使用方法：
+建议在系统DPI缩放100%的情况下使用  
 运行
 `
 start.bat
