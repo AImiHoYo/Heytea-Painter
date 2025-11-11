@@ -2,7 +2,7 @@
 Automatically add drawing elements by extracting edges.  
   ****
 一键启动包v2(修复了不同分辨率以及DPI情况下的绘画问题)：  
-https://pan.quark.cn/s/cb2575e3590a  
+https://pan.quark.cn/s/ff787761af03  
 一键启动包v1：  
 https://pan.quark.cn/s/b90824f581b1  
 # 使用方法：
