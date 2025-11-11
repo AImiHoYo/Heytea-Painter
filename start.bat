@@ -11,7 +11,7 @@ echo.
 
 if not exist "env\" (
     echo [ERROR] env 文件夹不存在！
-    echo 请先运行 setup_portable.bat 或 setup_env.bat 创建环境
+    echo 请先运行 setup_env.bat 创建环境
     echo.
     pause
     exit /b 1
