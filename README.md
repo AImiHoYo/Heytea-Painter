@@ -8,7 +8,16 @@ https://pan.quark.cn/s/6ae181319749
   ****
 建议在系统DPI缩放100%的情况下使用，高DPI缩放会导致程序绘画区域不能完全覆盖画布  
   ****
+### 1. 下载模型
+
+本项目依赖的模型文件 (`netG.pth`) 由 [Anime2Sketch](https://github.com/Mukosame/Anime2Sketch) 提供。
+
+请从 **[Releases 页面](https://github.com/Mukosame/Anime2Sketch)** 下载 `netG.pth` 文件，并将其放置在 `models/` 文件夹下
+你也可以点击这里**直接下载**模型文件：
+[**点击下载 netG.pth (模型直链)**](https://drive.google.com/file/d/1cf90_fPW-elGOKu5mTXT5N1dum-XY_46/view)  
+
 运行
+
 `
 start.bat
 `
