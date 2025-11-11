@@ -16,9 +16,9 @@ import cv2
 import numpy as np
 from datetime import datetime
 
-from image_processor import process_image_pencil, process_image_canny, process_image_anime2sketch
-from contour_optimizer import thin_contours_to_skeleton, remove_backtracking, apply_point_skipping, apply_jitter_correction
-from drawing_engine import start_drawing_method_1, start_drawing_method_2, start_drawing_method_3
+from modules.image_processor import process_image_pencil, process_image_canny, process_image_anime2sketch
+from modules.contour_optimizer import thin_contours_to_skeleton, remove_backtracking, apply_point_skipping, apply_jitter_correction
+from modules.drawing_engine import start_drawing_method_1, start_drawing_method_2, start_drawing_method_3
 
 # Set appearance
 ctk.set_appearance_mode("dark")
