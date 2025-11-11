@@ -34,7 +34,7 @@ echo [INFO] 找到 Python %PYTHON_VERSION%
 echo.
 
 echo [步骤 2/3] 创建虚拟环境...
-python -m env env
+python -m venv env
 
 if errorlevel 1 (
     echo [ERROR] 创建虚拟环境失败！
