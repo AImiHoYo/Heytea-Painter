@@ -60,7 +60,10 @@ pip install opencv-python==4.8.1.78
 pip install pillow==10.1.0
 pip install numpy==1.26.2
 pip install scipy==1.11.4
-pip install torch==2.1.0 torchvision==0.16.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.2.0 torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cpu
+pip install pydirectinput==1.0.4
+pip install keyboard==0.13.5
+pip install pynput==1.7.6
 pip install pyautogui==0.9.54
 pip install screeninfo==0.8.1
 
