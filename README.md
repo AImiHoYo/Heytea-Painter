@@ -15,7 +15,7 @@ https://pan.quark.cn/s/b90824f581b1
 
 请从 **[Anime2Sketch](https://github.com/Mukosame/Anime2Sketch)** 下载 `netG.pth` 文件，并将其放置在 `models/` 文件夹下  
 你也可以点击这里**直接下载**模型文件：
-[**netG.pth**](https://drive.google.com/file/d/1cf90_fPW-elGOKu5mTXT5N1dum-XY_46/view)  
+[**netG.pth**](https://drive.google.com/drive/folders/1Srf-WYUixK0wiUddc9y3pNKHHno5PN6R)  
   
 ### 2. 安装环境
 请先运行`setup_env.bat`安装虚拟环境到本目录  
