@@ -17,7 +17,7 @@ if not exist "env\" (
     exit /b 1
 )
 
-if not exist "env\python.exe" (
+if not exist "%~dp0env\Scripts\python.exe" (
     echo [ERROR] Python 未找到！
     echo 环境可能损坏，请重新运行 setup_portable.bat
     echo.
@@ -26,7 +26,7 @@ if not exist "env\python.exe" (
 )
 
 echo [1/3] 检查 Python 环境...
-"%~dp0env\python.exe" --version
+"%~dp0env\Scripts\python.exe" --version
 if errorlevel 1 (
     echo [ERROR] Python 执行失败！
     pause
@@ -53,7 +53,7 @@ echo [3/3] 启动 Heytea Painter...
 echo 提示: 绘画时请查看本窗口的输出信息
 echo.
 
-"%~dp0env\python.exe" heytea_modern.py
+"%~dp0env\Scripts\python.exe" heytea_modern.py
 
 if errorlevel 1 (
     echo.
