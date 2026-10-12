@@ -1,0 +1,11 @@
+customtkinter==5.2.2
+opencv-contrib-python==4.8.1.78
+numpy==1.24.3
+pillow==10.1.0
+scipy==1.11.4
+torch==2.1.0
+torchvision==0.16.0
+pynput==1.7.6
+pydirectinput==1.0.4; platform_system == "Windows"
+keyboard==0.13.5; platform_system == "Windows"
+pyobjc-framework-Quartz==10.3.2; platform_system == "Darwin"

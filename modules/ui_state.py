@@ -85,6 +85,20 @@ def _clamp(value: Any, low: float, high: float) -> float:
     return number
 
 
+def _to_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+    return default
+
+
 def normalize_preset(values: Dict[str, Any] | None) -> Dict[str, Any]:
     if not isinstance(values, dict):
         return dict(DEFAULT_PRESET)
@@ -120,9 +134,9 @@ def normalize_preset(values: Dict[str, Any] | None) -> Dict[str, Any]:
     ):
         merged[key] = int(merged[key])
 
-    merged["anime_invert"] = bool(merged.get("anime_invert", False))
-    merged["anime_adaptive"] = bool(merged.get("anime_adaptive", False))
-    merged["thin_contours"] = bool(merged.get("thin_contours", False))
+    merged["anime_invert"] = _to_bool(merged.get("anime_invert", False), default=False)
+    merged["anime_adaptive"] = _to_bool(merged.get("anime_adaptive", False), default=False)
+    merged["thin_contours"] = _to_bool(merged.get("thin_contours", False), default=False)
 
     return merged
 

@@ -5,6 +5,9 @@
 
 import cv2
 import numpy as np
+import os
+import hashlib
+from pathlib import Path
 from scipy.interpolate import splprep, splev
 from modules.smart_resize import adaptive_resize, calculate_optimal_size
 
@@ -75,6 +78,26 @@ if TORCH_AVAILABLE:
 
 # --- 全局模型缓存 ---
 anime2sketch_model = None
+ANIME2SKETCH_MODEL_SHA256 = os.environ.get("ANIME2SKETCH_MODEL_SHA256", "").strip().lower()
+
+
+def _sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().lower()
+
+
+def _load_state_dict_safely(model_path: str, device):
+    if ANIME2SKETCH_MODEL_SHA256:
+        actual_hash = _sha256_file(model_path)
+        if actual_hash != ANIME2SKETCH_MODEL_SHA256:
+            raise RuntimeError("模型文件 SHA-256 校验失败，请重新下载可信模型文件。")
+    try:
+        return torch.load(model_path, map_location=device, weights_only=True)
+    except TypeError as e:
+        raise RuntimeError("当前 PyTorch 版本不支持安全加载（weights_only=True），请升级 PyTorch。") from e
 
 
 def _safe_thinning(binary):
@@ -101,23 +124,22 @@ def get_anime2sketch_model():
     
     # 尝试加载模型
     try:
-        import os
         # 模型路径：使用绝对路径，支持中文路径
-        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        model_path = os.path.join(script_dir, "models", "netG.pth")
+        script_dir = Path(__file__).resolve().parent.parent
+        model_path = script_dir / "models" / "netG.pth"
         
         # 确保路径存在
-        if not os.path.exists(model_path):
+        if not model_path.exists():
             # 尝试其他可能的路径
             alternative_paths = [
-                os.path.join(os.getcwd(), "models", "netG.pth"),
-                os.path.join(script_dir, "netG.pth"),
-                "models/netG.pth",
-                "netG.pth"
+                Path.cwd() / "models" / "netG.pth",
+                script_dir / "netG.pth",
+                Path("models/netG.pth"),
+                Path("netG.pth"),
             ]
             
             for alt_path in alternative_paths:
-                if os.path.exists(alt_path):
+                if alt_path.exists():
                     model_path = alt_path
                     print(f"找到模型文件: {model_path}")
                     break
@@ -126,20 +148,20 @@ def get_anime2sketch_model():
                 print(f"=" * 60)
                 print(f"错误: 找不到 Anime2Sketch 模型文件")
                 print(f"尝试的路径:")
-                print(f"  1. {os.path.join(script_dir, 'models', 'netG.pth')}")
+                print(f"  1. {script_dir / 'models' / 'netG.pth'}")
                 for i, p in enumerate(alternative_paths, 2):
                     print(f"  {i}. {p}")
                 print(f"")
                 print(f"请下载模型文件:")
                 print(f"  下载地址: https://github.com/Mukosame/Anime2Sketch/releases/download/1.0/netG.pth")
-                print(f"  放置位置: {os.path.join(script_dir, 'models', 'netG.pth')}")
+                print(f"  放置位置: {script_dir / 'models' / 'netG.pth'}")
                 print(f"=" * 60)
                 anime2sketch_model = "error"
                 return None
-        
-        model_path = os.path.abspath(model_path)
-        
-        if not os.path.exists(model_path):
+
+        model_path = model_path.resolve()
+
+        if not model_path.exists():
             print(f"错误: 找不到模型文件: {model_path}")
             print("请下载 Anime2Sketch 模型并放置到 models 文件夹:")
             print("https://github.com/Mukosame/Anime2Sketch/releases/download/1.0/netG.pth")
@@ -150,7 +172,7 @@ def get_anime2sketch_model():
         anime2sketch_model = UnetGenerator(input_nc=3, output_nc=1, num_downs=8, ngf=64)
         
         # 加载权重并处理 'module.' 前缀
-        state_dict = torch.load(model_path, map_location=device)
+        state_dict = _load_state_dict_safely(str(model_path), device)
         
         new_state_dict = {}
         for k, v in state_dict.items():
@@ -159,12 +181,11 @@ def get_anime2sketch_model():
             else:
                 new_state_dict[k] = v
         
-        missing_keys, unexpected_keys = anime2sketch_model.load_state_dict(new_state_dict, strict=False)
-        
-        if missing_keys:
-            print(f"警告: 缺少的键: {len(missing_keys)} 个")
-        if unexpected_keys:
-            print(f"警告: 意外的键: {len(unexpected_keys)} 个 (已忽略)")
+        missing_keys, unexpected_keys = anime2sketch_model.load_state_dict(new_state_dict, strict=True)
+        if missing_keys or unexpected_keys:
+            raise RuntimeError(
+                f\"模型结构不匹配: missing={len(missing_keys)}, unexpected={len(unexpected_keys)}\"
+            )
         
         anime2sketch_model.to(device)
         anime2sketch_model.eval()
@@ -193,9 +214,19 @@ def load_image_with_unicode(file_path, target_size=None):
         image: BGR 图像数组
     """
     try:
+        path_obj = Path(file_path)
+        if not path_obj.exists():
+            print(f"错误: 文件不存在: {path_obj.name}")
+            return None
+        if path_obj.stat().st_size <= 0:
+            print(f"错误: 文件为空: {path_obj.name}")
+            return None
         # 使用 numpy 读取文件字节，然后用 cv2 解码
-        with open(file_path, 'rb') as f:
+        with open(path_obj, 'rb') as f:
             file_bytes = np.frombuffer(f.read(), dtype=np.uint8)
+        if file_bytes.size == 0:
+            print(f"错误: 文件字节为空: {path_obj.name}")
+            return None
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         
         if image is None:
@@ -252,13 +283,13 @@ def load_image_with_unicode(file_path, target_size=None):
         
         return image
     except FileNotFoundError:
-        print(f"错误: 文件不存在: {file_path}")
+        print("错误: 文件不存在")
         return None
     except PermissionError:
-        print(f"错误: 没有读取权限: {file_path}")
+        print("错误: 没有读取权限")
         return None
     except Exception as e:
-        print(f"错误: 加载图像失败: {file_path}")
+        print("错误: 加载图像失败")
         print(f"  异常信息: {e}")
         return None
 
@@ -392,7 +423,7 @@ def process_image_anime2sketch(file_path, simplify_eps, spline_smoothness, previ
         image = image.to(device)
         
         # 推理
-        with torch.no_grad():
+        with torch.inference_mode():
             edge = model(image)
             edge = torch.sigmoid((edge - sigmoid_threshold) * 10)
         

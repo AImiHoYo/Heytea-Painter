@@ -5,25 +5,12 @@ Using CustomTkinter for modern UI
 
 import sys
 import os
-
-# 🔧 关键: 在导入任何GUI库之前设置DPI感知 (使用Per-Monitor V1)
-import ctypes
-try:
-    # Windows 8.1+ Per-Monitor DPI Aware (稳定可靠)
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    print("✓ DPI感知已启用 (Per-Monitor V1)")
-except:
-    # Fallback: Windows Vista+ System DPI Aware
-    try:
-        ctypes.windll.user32.SetProcessDPIAware()
-        print("✓ DPI感知已启用 (System DPI)")
-    except Exception as e:
-        print(f"⚠ DPI设置失败: {e}")
+import platform
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'modules'))
 
 import customtkinter as ctk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import threading
 import json
@@ -35,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from modules.image_processor import process_image_pencil, process_image_canny, process_image_anime2sketch
 from modules.contour_optimizer import thin_contours_to_skeleton, remove_backtracking, apply_point_skipping, apply_jitter_correction
 from modules.drawing_engine import start_drawing_method_1, start_drawing_method_2, start_drawing_method_3
+from modules.platform_backends import get_platform_backend
 from modules.ui_layout import build_main_layout
 from modules.ui_components import create_slider, create_section
 from modules.ui_state import normalize_preset
@@ -86,9 +74,14 @@ class ModernDrawingApp:
         self.preview_original_img = None
         self.photo_image = None
         self.is_updating = False
+        self.is_closing = False
+        self._preview_timer = None
+        self._preview_after_id = None
+        self._preview_future = None
         self.preview_worker = ThreadPoolExecutor(max_workers=1)
         self.preview_request_id = 0
         self.last_completed_signature = None
+        self.platform_backend = get_platform_backend()
         self.preview_status_var = ctk.StringVar(value="状态：待机")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
@@ -336,7 +329,9 @@ class ModernDrawingApp:
     
     def update_preview_throttled(self):
         """延迟更新，防止画面撕裂"""
-        if hasattr(self, '_preview_timer'):
+        if self.is_closing:
+            return
+        if self._preview_timer is not None:
             self.root.after_cancel(self._preview_timer)
         self._preview_timer = self.root.after(250, self.update_preview)
 
@@ -488,7 +483,7 @@ class ModernDrawingApp:
     
     def update_preview(self):
         """更新预览"""
-        if not self.file_path:
+        if self.is_closing or not self.file_path:
             return
 
         params = self._collect_preview_params()
@@ -502,14 +497,18 @@ class ModernDrawingApp:
         self.preview_request_id += 1
         request_id = self.preview_request_id
         file_path = self.file_path
+        previous = self._preview_future
+        if previous is not None and not previous.done():
+            previous.cancel()
 
         def process():
             return self._process_preview_request(file_path, params)
 
         future = self.preview_worker.submit(process)
+        self._preview_future = future
 
         def on_done():
-            if request_id != self.preview_request_id:
+            if self.is_closing or request_id != self.preview_request_id:
                 return
             self.is_updating = False
             try:
@@ -543,13 +542,16 @@ class ModernDrawingApp:
             self.preview_status_var.set(f"状态：完成（路径 {len(contours)}，点数 {result['points']}）")
             self.log(f"预览更新完成，检测到 {len(contours)} 条路径")
 
-        self.root.after(10, self._poll_preview_future, future, on_done)
+        self._preview_after_id = self.root.after(10, self._poll_preview_future, future, on_done)
 
     def _poll_preview_future(self, future, callback):
+        if self.is_closing:
+            return
         if future.done():
+            self._preview_after_id = None
             callback()
             return
-        self.root.after(25, self._poll_preview_future, future, callback)
+        self._preview_after_id = self.root.after(25, self._poll_preview_future, future, callback)
     
     def display_preview(self):
         """显示预览"""
@@ -617,8 +619,19 @@ class ModernDrawingApp:
     
     def start_drawing(self):
         """开始绘画"""
+        if self.is_closing:
+            return
         if not self.contours or len(self.contours) == 0:
             self.log("错误: 没有可绘制的轮廓")
+            return
+        if self.img_w <= 0 or self.img_h <= 0:
+            self.log("错误: 图像尺寸无效，请重新加载图片后重试")
+            return
+
+        ok, reason = self.platform_backend.ensure_ready_for_drawing()
+        if not ok:
+            self.log(f"错误: {reason}")
+            messagebox.showerror("无法开始自动绘画", reason, parent=self.root)
             return
         
         # 检查轮廓点数
@@ -645,27 +658,8 @@ class ModernDrawingApp:
         self.log("GUI已最小化...")
         
         # 确保终端窗口获得焦点
-        import ctypes
         import time
-        try:
-            # 获取控制台窗口句柄
-            kernel32 = ctypes.windll.kernel32
-            user32 = ctypes.windll.user32
-            
-            # 获取当前进程的控制台窗口
-            console_hwnd = kernel32.GetConsoleWindow()
-            
-            if console_hwnd:
-                # 显示并激活控制台窗口
-                user32.ShowWindow(console_hwnd, 9)  # SW_RESTORE = 9
-                user32.SetForegroundWindow(console_hwnd)
-                self.log("已激活终端窗口")
-            else:
-                self.log("提示: 请手动切换到终端窗口查看绘画进度")
-        except Exception as e:
-            self.log(f"无法激活终端窗口: {e}")
-            self.log("提示: 请手动切换到终端窗口查看绘画进度")
-        
+        self.platform_backend.focus_console(self.log)
         time.sleep(2)
         
         method = self.draw_method.get()
@@ -836,6 +830,22 @@ class ModernDrawingApp:
             self.update_preview()
 
     def on_close(self):
+        self.is_closing = True
+        self.preview_request_id += 1
+        if self._preview_timer is not None:
+            try:
+                self.root.after_cancel(self._preview_timer)
+            except Exception:
+                pass
+            self._preview_timer = None
+        if self._preview_after_id is not None:
+            try:
+                self.root.after_cancel(self._preview_after_id)
+            except Exception:
+                pass
+            self._preview_after_id = None
+        if self._preview_future is not None and not self._preview_future.done():
+            self._preview_future.cancel()
         try:
             self.preview_worker.shutdown(wait=False, cancel_futures=True)
         except Exception:
