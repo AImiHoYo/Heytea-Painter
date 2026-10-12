@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
+permissions:
+  contents: write
 jobs: 
   Build:
     runs-on: windows-latest
@@ -22,6 +26,10 @@ jobs:
       - name: Install pyinstaller to pack application. 
         run: | 
           conda install pyinstaller -y
+      - name: Pre-release validation
+        run: |
+          python -m compileall heytea_modern.py main.py modules
+          python scripts/smoke_check.py
       - name: Build Application
         run: |
           pyinstaller --onefile -w --name heytea_app heytea_modern.py 
@@ -35,11 +43,11 @@ jobs:
           name: heytea_app_build
           path: |
             dist/*
-      # Release Step (Commented Out), set up your TOKEN secret and uncomment to enable
-      # - name: Create Release.
-      #   uses: softprops/action-gh-release@v2
-      #   with:
-      #     files: |
-      #       ./dist/*
-      #     draft: true
-      #     token: ${{ secrets.TOKEN }}
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./dist/*
+          draft: false
+          generate_release_notes: true

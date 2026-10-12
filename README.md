@@ -1,6 +1,23 @@
 # Heytea-Painter
 Automatically add drawing elements by extracting edges.  
   ****
+## 发布范围与正式版基线
+
+- 首发目标平台：**Windows 桌面端**
+- 主入口：`heytea_modern.py`（`main.py` 仅保留兼容转发）
+- 正式版验收标准：
+  - 三种线条提取模式可正常生成预览
+  - 三种绘画方式可启动并执行坐标标定流程
+  - 在缺少模型、图像损坏、OpenCV 缺少扩展时可给出可恢复提示
+  - CI 可完成构建、冒烟校验并产出可下载构建物（含 checksum）
+
+## 版本与发布
+
+- 版本号文件：`VERSION`
+- CI 会在 `main` 分支 PR/Push 执行构建和冒烟校验
+- 当推送标签 `v*`（例如 `v1.0.0`）时，会自动创建 GitHub Release 并上传 `dist/*` 产物
+
+  ****
 一键启动包v2(修复了不同分辨率以及DPI情况下的绘画问题)：  
 https://pan.quark.cn/s/ff787761af03  
 一键启动包v1：  

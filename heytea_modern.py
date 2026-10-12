@@ -24,16 +24,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'modules'))
 
 import customtkinter as ctk
 from tkinter import filedialog
-from PIL import Image, ImageTk, ImageFont
+from PIL import Image, ImageTk
 import threading
 import json
 import cv2
 import numpy as np
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from modules.image_processor import process_image_pencil, process_image_canny, process_image_anime2sketch
 from modules.contour_optimizer import thin_contours_to_skeleton, remove_backtracking, apply_point_skipping, apply_jitter_correction
 from modules.drawing_engine import start_drawing_method_1, start_drawing_method_2, start_drawing_method_3
+from modules.ui_layout import build_main_layout
+from modules.ui_components import create_slider, create_section
+from modules.ui_state import normalize_preset
 
 # Set appearance
 ctk.set_appearance_mode("dark")
@@ -55,10 +59,21 @@ if FONT_FILES:
 FONT_FAMILY = "Microsoft YaHei UI"
 
 
+def get_app_version():
+    version_file = os.path.join(os.path.dirname(__file__), "VERSION")
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            version = f.read().strip()
+            return version or "0.0.0"
+    except Exception:
+        return "0.0.0"
+
+
 class ModernDrawingApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Heytea Painter")
+        self.app_version = get_app_version()
+        self.root.title(f"Heytea Painter v{self.app_version}")
         self.root.geometry("1600x950")
         
         self.file_path = None
@@ -71,6 +86,11 @@ class ModernDrawingApp:
         self.preview_original_img = None
         self.photo_image = None
         self.is_updating = False
+        self.preview_worker = ThreadPoolExecutor(max_workers=1)
+        self.preview_request_id = 0
+        self.last_completed_signature = None
+        self.preview_status_var = ctk.StringVar(value="状态：待机")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
         self.setup_gui()
         self.load_presets(silent=True)
@@ -78,53 +98,18 @@ class ModernDrawingApp:
     
     def setup_gui(self):
         """创建现代化GUI界面"""
-        # 主容器
-        main_container = ctk.CTkFrame(self.root)
-        main_container.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # 左右分割
-        left_right_container = ctk.CTkFrame(main_container, fg_color="transparent")
-        left_right_container.pack(fill="both", expand=True)
-        
-        # 左侧控制面板
-        self.control_panel = ctk.CTkScrollableFrame(left_right_container, width=400, corner_radius=10)
-        self.control_panel.pack(side="left", fill="y", padx=(0, 10))
-        
-        # 右侧容器
-        right_container = ctk.CTkFrame(left_right_container, fg_color="transparent")
-        right_container.pack(side="right", fill="both", expand=True)
-        
-        # 右上：预览区域
-        preview_frame = ctk.CTkFrame(right_container, corner_radius=10)
-        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
-        
-        # 预览标题栏
-        preview_header = ctk.CTkFrame(preview_frame, height=50, corner_radius=0)
-        preview_header.pack(fill="x", padx=0, pady=0)
-        
-        ctk.CTkLabel(preview_header, text="预览区域", font=(FONT_FAMILY, 16, "bold")).pack(side="left", padx=20, pady=10)
-        
-        zoom_frame = ctk.CTkFrame(preview_header, fg_color="transparent")
-        zoom_frame.pack(side="right", padx=20)
-        
-        ctk.CTkButton(zoom_frame, text="放大", width=50, command=self.zoom_in, font=(FONT_FAMILY, 11)).pack(side="left", padx=2)
-        ctk.CTkButton(zoom_frame, text="缩小", width=50, command=self.zoom_out, font=(FONT_FAMILY, 11)).pack(side="left", padx=2)
-        ctk.CTkButton(zoom_frame, text="重置", width=50, command=self.reset_zoom, font=(FONT_FAMILY, 11)).pack(side="left", padx=2)
-        
-        # 预览画布
-        self.preview_canvas = ctk.CTkCanvas(preview_frame, bg="#1a1a1a", highlightthickness=0)
-        self.preview_canvas.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        self.preview_canvas.bind("<MouseWheel>", self.on_preview_mousewheel)
-        
-        # 右下：控制台
-        console_frame = ctk.CTkFrame(right_container, corner_radius=10)
-        console_frame.pack(fill="x", pady=0)
-        
-        ctk.CTkLabel(console_frame, text="控制台输出", font=(FONT_FAMILY, 14, "bold")).pack(anchor="w", padx=15, pady=(10, 5))
-        
-        self.console_text = ctk.CTkTextbox(console_frame, height=150, font=(FONT_FAMILY, 10))
-        self.console_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        self.console_text.configure(state="disabled")
+        layout = build_main_layout(
+            self.root,
+            FONT_FAMILY,
+            self.zoom_in,
+            self.zoom_out,
+            self.reset_zoom,
+            self.on_preview_mousewheel,
+        )
+        self.control_panel = layout["control_panel"]
+        self.preview_canvas = layout["preview_canvas"]
+        self.console_text = layout["console_text"]
+        ctk.CTkLabel(self.control_panel, textvariable=self.preview_status_var, font=(FONT_FAMILY, 11)).pack(pady=(5, 0))
         
         self.create_controls()
     
@@ -145,18 +130,12 @@ class ModernDrawingApp:
         title_label.pack(pady=20)
         
         # 1. 文件操作
-        file_frame = ctk.CTkFrame(self.control_panel, corner_radius=10)
-        file_frame.pack(fill="x", pady=10)
-        
-        ctk.CTkLabel(file_frame, text="文件操作", font=(FONT_FAMILY, 14, "bold")).pack(pady=10)
+        file_frame = create_section(self.control_panel, "文件操作", FONT_FAMILY)
         ctk.CTkButton(file_frame, text="加载图片", command=self.load_image, 
                      height=40, font=(FONT_FAMILY, 12)).pack(fill="x", padx=20, pady=5)
         
         # 2. 线条提取
-        extract_frame = ctk.CTkFrame(self.control_panel, corner_radius=10)
-        extract_frame.pack(fill="x", pady=10)
-        
-        ctk.CTkLabel(extract_frame, text="线条提取方法", font=(FONT_FAMILY, 14, "bold")).pack(pady=10)
+        extract_frame = create_section(self.control_panel, "线条提取方法", FONT_FAMILY)
         
         self.extraction_method = ctk.CTkSegmentedButton(extract_frame, 
             values=["Pencil Sketch", "Canny", "Anime2Sketch"],
@@ -209,10 +188,7 @@ class ModernDrawingApp:
         self.anime_mode.pack(fill="x", pady=5)
         
         # 3. 通用优化
-        optimize_frame = ctk.CTkFrame(self.control_panel, corner_radius=10)
-        optimize_frame.pack(fill="x", pady=10)
-        
-        ctk.CTkLabel(optimize_frame, text="通用优化", font=(FONT_FAMILY, 14, "bold")).pack(pady=10)
+        optimize_frame = create_section(self.control_panel, "通用优化", FONT_FAMILY)
         
         self.simplify_eps = self.create_modern_slider(optimize_frame, "线条简化度 [全局]", 0.1, 5.0, 1.0, 0.1, tooltip="简化线条路径，减少点数")
         self.preview_thick = self.create_modern_slider(optimize_frame, "预览线条粗细 [预览]", 1, 20, 1, 1, tooltip="预览图中线条的粗细")
@@ -225,10 +201,7 @@ class ModernDrawingApp:
         self.skip_points = self.create_modern_slider(optimize_frame, "跳点加速 [全局]", 1, 5, 1, 1, tooltip="跳过部分点来加快绘画速度")
         
         # 4. 绘画模拟
-        draw_frame = ctk.CTkFrame(self.control_panel, corner_radius=10)
-        draw_frame.pack(fill="x", pady=10)
-        
-        ctk.CTkLabel(draw_frame, text="绘画模拟", font=(FONT_FAMILY, 14, "bold")).pack(pady=10)
+        draw_frame = create_section(self.control_panel, "绘画模拟", FONT_FAMILY)
         
         self.draw_method = ctk.CTkSegmentedButton(draw_frame, 
             values=["短行程", "智能拖动", "仿真人"],
@@ -245,10 +218,7 @@ class ModernDrawingApp:
         self.corner_sharp = self.create_modern_slider(draw_frame, "转角锐利度 [方法3]", 0, 10, 5, 1, tooltip="转角锐利度：0=圆润平滑，10=极度锐利")
         
         # 5. 速度控制
-        speed_frame = ctk.CTkFrame(self.control_panel, corner_radius=10)
-        speed_frame.pack(fill="x", pady=10)
-        
-        ctk.CTkLabel(speed_frame, text="速度控制", font=(FONT_FAMILY, 14, "bold")).pack(pady=10)
+        speed_frame = create_section(self.control_panel, "速度控制", FONT_FAMILY)
         self.speed_mult = self.create_modern_slider(speed_frame, "速度倍率 [全局]", 0.1, 5.0, 1.0, 0.1, tooltip="影响所有延迟参数的倍率")
         
         # 6. 功能按钮
@@ -275,49 +245,17 @@ class ModernDrawingApp:
     
     def create_modern_slider(self, parent, label, from_, to, default, resolution=None, tooltip=None):
         """创建现代化滑块"""
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(fill="x", pady=5)
-        
-        if resolution is None:
-            if (to - from_) < 10 and isinstance(default, float):
-                resolution = 0.01
-            else:
-                resolution = 1
-        
-        if resolution >= 1:
-            fmt = "{:.0f}"
-        elif resolution >= 0.1:
-            fmt = "{:.1f}"
-        else:
-            fmt = "{:.2f}"
-        
-        label_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        label_frame.pack(fill="x")
-        
-        label_widget = ctk.CTkLabel(label_frame, text=label, font=(FONT_FAMILY, 11))
-        label_widget.pack(side="left")
-        
-        # 添加提示信息
-        if tooltip:
-            self.create_tooltip(label_widget, tooltip)
-        
-        var = ctk.DoubleVar(value=default)
-        value_label = ctk.CTkLabel(label_frame, text=fmt.format(default), 
-                                   font=(FONT_FAMILY, 11, "bold"),
-                                   text_color="#3498db")
-        value_label.pack(side="right")
-        
-        def update_label(*args):
-            if not self.is_updating:
-                value_label.configure(text=fmt.format(var.get()))
-        
-        var.trace_add('write', update_label)
-        
-        slider = ctk.CTkSlider(frame, from_=from_, to=to, variable=var, 
-                              command=lambda v: self.update_preview_throttled())
-        slider.pack(fill="x", pady=2)
-        
-        return var
+        return create_slider(
+            parent=parent,
+            label=label,
+            from_=from_,
+            to=to,
+            default=default,
+            font_family=FONT_FAMILY,
+            on_change=self.update_preview_throttled,
+            is_updating_getter=lambda: self.is_updating,
+            resolution=resolution,
+        )
     
     def create_tooltip(self, widget, text):
         """创建鼠标悬停提示"""
@@ -398,97 +336,220 @@ class ModernDrawingApp:
     
     def update_preview_throttled(self):
         """延迟更新，防止画面撕裂"""
-        if self.is_updating:
-            return
         if hasattr(self, '_preview_timer'):
             self.root.after_cancel(self._preview_timer)
-        self._preview_timer = self.root.after(500, self.update_preview)
-    
-    def update_preview(self):
-        """更新预览"""
-        if not self.file_path or self.is_updating:
-            return
-        
-        self.is_updating = True
-        
+        self._preview_timer = self.root.after(250, self.update_preview)
+
+    def _collect_preview_params(self):
         method = self.extraction_method.get()
-        preview_img, contours, img_w, img_h = None, None, 0, 0
-        
         simplify = self.simplify_eps.get()
         spline = self.spline_smooth.get()
         thick = self.preview_thick.get()
-        
+        blur = int(self.canny_blur.get())
+        if blur % 2 == 0:
+            blur += 1
+        mode_map = {"外部轮廓": "外部轮廓 (快速)", "所有轮廓": "所有轮廓 (详细)", "骨架提取": "骨架提取 (推荐)"}
+        return {
+            "method": method,
+            "simplify": simplify,
+            "spline": spline,
+            "thick": thick,
+            "sigma_s": self.sigma_s.get(),
+            "sigma_r": self.sigma_r.get(),
+            "shade_factor": self.shade_factor.get(),
+            "canny_blur": blur,
+            "canny_low": self.canny_low.get(),
+            "canny_high": self.canny_high.get(),
+            "anime_threshold": int(self.anime_threshold.get()),
+            "anime_morph_size": int(self.anime_morph_size.get()),
+            "anime_morph_iter": int(self.anime_morph_iter.get()),
+            "anime_min_area": int(self.anime_min_area.get()),
+            "anime_mode": mode_map[self.anime_mode.get()],
+            "anime_pre_blur": int(self.anime_pre_blur.get()),
+            "anime_edge_enhance": self.anime_edge_enhance.get(),
+            "anime_sigmoid": self.anime_sigmoid.get(),
+            "anime_invert": self.anime_invert.get() == 1,
+            "anime_adaptive": self.anime_adaptive.get() == 1,
+            "jitter": int(self.jitter_correct.get()),
+            "thin_contours": self.thin_contours.get() == 1,
+            "skip": int(self.skip_points.get()),
+        }
+
+    def _build_preview_signature(self, params):
+        mtime = 0
         try:
-            if method == "Pencil Sketch":
-                preview_img, contours, img_w, img_h = process_image_pencil(
-                    self.file_path, self.sigma_s.get(), self.sigma_r.get(), 
-                    self.shade_factor.get(), simplify, spline, thick)
-            
-            elif method == "Canny":
-                blur = int(self.canny_blur.get())
-                if blur % 2 == 0:
-                    blur += 1
-                preview_img, contours, img_w, img_h = process_image_canny(
-                    self.file_path, blur, self.canny_low.get(), 
-                    self.canny_high.get(), simplify, spline, thick)
-            
-            elif method == "Anime2Sketch":
-                mode_map = {"外部轮廓": "外部轮廓 (快速)", "所有轮廓": "所有轮廓 (详细)", "骨架提取": "骨架提取 (推荐)"}
-                preview_img, contours, img_w, img_h = process_image_anime2sketch(
-                    self.file_path, simplify, spline, thick,
-                    int(self.anime_threshold.get()), int(self.anime_morph_size.get()),
-                    int(self.anime_morph_iter.get()), int(self.anime_min_area.get()),
-                    mode_map[self.anime_mode.get()], int(self.anime_pre_blur.get()),
-                    self.anime_edge_enhance.get(), self.anime_sigmoid.get(),
-                    self.anime_invert.get() == 1, self.anime_adaptive.get() == 1)
-        
-        except Exception as e:
-            self.log(f"预览失败: {e}")
-            self.is_updating = False
-            return
-        
+            mtime = os.path.getmtime(self.file_path) if self.file_path else 0
+        except OSError:
+            pass
+        tracked = (
+            self.file_path,
+            mtime,
+            params["method"],
+            round(params["simplify"], 3),
+            round(params["spline"], 3),
+            round(params["thick"], 3),
+            round(params["sigma_s"], 3),
+            round(params["sigma_r"], 3),
+            round(params["shade_factor"], 3),
+            params["canny_blur"],
+            round(params["canny_low"], 3),
+            round(params["canny_high"], 3),
+            params["anime_threshold"],
+            params["anime_morph_size"],
+            params["anime_morph_iter"],
+            params["anime_min_area"],
+            params["anime_mode"],
+            params["anime_pre_blur"],
+            round(params["anime_edge_enhance"], 3),
+            round(params["anime_sigmoid"], 3),
+            params["anime_invert"],
+            params["anime_adaptive"],
+            params["jitter"],
+            params["thin_contours"],
+            params["skip"],
+        )
+        return tracked
+
+    def _process_preview_request(self, file_path, params):
+        method = params["method"]
+        simplify = params["simplify"]
+        spline = params["spline"]
+        thick = params["thick"]
+
+        if method == "Pencil Sketch":
+            preview_img, contours, img_w, img_h = process_image_pencil(
+                file_path,
+                params["sigma_s"],
+                params["sigma_r"],
+                params["shade_factor"],
+                simplify,
+                spline,
+                thick,
+            )
+        elif method == "Canny":
+            preview_img, contours, img_w, img_h = process_image_canny(
+                file_path,
+                params["canny_blur"],
+                params["canny_low"],
+                params["canny_high"],
+                simplify,
+                spline,
+                thick,
+            )
+        else:
+            preview_img, contours, img_w, img_h = process_image_anime2sketch(
+                file_path,
+                simplify,
+                spline,
+                thick,
+                params["anime_threshold"],
+                params["anime_morph_size"],
+                params["anime_morph_iter"],
+                params["anime_min_area"],
+                params["anime_mode"],
+                params["anime_pre_blur"],
+                params["anime_edge_enhance"],
+                params["anime_sigmoid"],
+                params["anime_invert"],
+                params["anime_adaptive"],
+            )
+
         if preview_img is None:
-            self.is_updating = False
-            return
-        
-        # 优化
+            return {"preview_img": None, "contours": [], "img_w": 0, "img_h": 0, "points": 0}
+
         if contours and len(contours) > 0:
             contours = remove_backtracking(contours)
-            
-            jitter = int(self.jitter_correct.get())
-            if jitter > 0:
-                contours = apply_jitter_correction(contours, jitter)
-            
-            if self.thin_contours.get() == 1:
+
+            if params["jitter"] > 0:
+                contours = apply_jitter_correction(contours, params["jitter"])
+
+            redraw_required = False
+            if params["thin_contours"]:
                 contours = thin_contours_to_skeleton(contours, preview_img.shape)
+                redraw_required = True
+
+            if params["skip"] > 1:
+                contours = apply_point_skipping(contours, params["skip"])
+                redraw_required = True
+
+            if redraw_required:
                 preview_img = cv2.cvtColor(cv2.cvtColor(preview_img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
                 for contour in contours:
                     cv2.polylines(preview_img, [contour], False, (0, 0, 255), int(thick), lineType=cv2.LINE_AA)
-            
-            skip = int(self.skip_points.get())
-            if skip > 1:
-                contours = apply_point_skipping(contours, skip)
-                preview_img = cv2.cvtColor(cv2.cvtColor(preview_img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
-                for contour in contours:
-                    cv2.polylines(preview_img, [contour], False, (0, 0, 255), int(thick), lineType=cv2.LINE_AA)
-        
-        self.contours = contours
-        self.img_w = img_w
-        self.img_h = img_h
-        
-        # 释放旧的图像对象，避免内存泄漏
-        if self.preview_original_img is not None:
+
+        points = 0
+        if contours:
+            for contour in contours:
+                try:
+                    points += len(contour)
+                except Exception:
+                    pass
+        return {"preview_img": preview_img, "contours": contours or [], "img_w": img_w, "img_h": img_h, "points": points}
+    
+    def update_preview(self):
+        """更新预览"""
+        if not self.file_path:
+            return
+
+        params = self._collect_preview_params()
+        signature = self._build_preview_signature(params)
+        if signature == self.last_completed_signature and self.preview_original_img is not None:
+            self.preview_status_var.set("状态：参数未变化")
+            return
+
+        self.is_updating = True
+        self.preview_status_var.set("状态：正在处理预览...")
+        self.preview_request_id += 1
+        request_id = self.preview_request_id
+        file_path = self.file_path
+
+        def process():
+            return self._process_preview_request(file_path, params)
+
+        future = self.preview_worker.submit(process)
+
+        def on_done():
+            if request_id != self.preview_request_id:
+                return
+            self.is_updating = False
             try:
-                self.preview_original_img.close()
-            except:
-                pass
-        
-        img_rgb = cv2.cvtColor(preview_img, cv2.COLOR_BGR2RGB)
-        self.preview_original_img = Image.fromarray(img_rgb)
-        self.preview_zoom = 1.0
-        self.display_preview()
-        self.log(f"预览更新完成，检测到 {len(contours)} 条路径")
-        self.is_updating = False
+                result = future.result()
+            except Exception as e:
+                self.preview_status_var.set("状态：预览失败")
+                self.log(f"预览失败: {e}")
+                return
+
+            preview_img = result["preview_img"]
+            contours = result["contours"]
+            if preview_img is None:
+                self.preview_status_var.set("状态：未生成预览")
+                return
+
+            self.contours = contours
+            self.img_w = result["img_w"]
+            self.img_h = result["img_h"]
+
+            if self.preview_original_img is not None:
+                try:
+                    self.preview_original_img.close()
+                except Exception:
+                    pass
+
+            img_rgb = cv2.cvtColor(preview_img, cv2.COLOR_BGR2RGB)
+            self.preview_original_img = Image.fromarray(img_rgb)
+            self.preview_zoom = 1.0
+            self.display_preview()
+            self.last_completed_signature = signature
+            self.preview_status_var.set(f"状态：完成（路径 {len(contours)}，点数 {result['points']}）")
+            self.log(f"预览更新完成，检测到 {len(contours)} 条路径")
+
+        self.root.after(10, self._poll_preview_future, future, on_done)
+
+    def _poll_preview_future(self, future, callback):
+        if future.done():
+            callback()
+            return
+        self.root.after(25, self._poll_preview_future, future, callback)
     
     def display_preview(self):
         """显示预览"""
@@ -686,6 +747,7 @@ class ModernDrawingApp:
     
     def set_all_values(self, values):
         """设置所有参数值"""
+        values = normalize_preset(values)
         extract_map = {"Pencil Sketch (V19)": "Pencil Sketch", "Canny 边缘检测": "Canny", "Anime2Sketch": "Anime2Sketch"}
         method_map = {"方法 1: 短行程 (推荐)": "短行程", "方法 2: 智能拖动 (蜘蛛网?)": "智能拖动", "方法 3: 仿真人绘画 🎨": "仿真人"}
         mode_map = {"外部轮廓 (快速)": "外部轮廓", "所有轮廓 (详细)": "所有轮廓", "骨架提取 (推荐)": "骨架提取"}
@@ -738,7 +800,7 @@ class ModernDrawingApp:
     
     def save_presets(self):
         """保存预设"""
-        values = self.get_all_values()
+        values = normalize_preset(self.get_all_values())
         try:
             with open(self.preset_file, 'w', encoding='utf-8') as f:
                 json.dump(values, f, indent=4, ensure_ascii=False)
@@ -756,12 +818,14 @@ class ModernDrawingApp:
         try:
             with open(self.preset_file, 'r', encoding='utf-8') as f:
                 values = json.load(f)
+            values = normalize_preset(values)
             self.set_all_values(values)
             if not silent:
                 self.log(f"预设已加载: {self.preset_file}")
         except Exception as e:
             if not silent:
-                self.log(f"加载失败: {e}")
+                self.log(f"加载失败，已回退默认值: {e}")
+            self.set_all_values({})
     
     def reset_params(self):
         """重置参数"""
@@ -770,6 +834,13 @@ class ModernDrawingApp:
         self.on_method_change()
         if self.file_path:
             self.update_preview()
+
+    def on_close(self):
+        try:
+            self.preview_worker.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+        self.root.destroy()
 
 
 if __name__ == "__main__":
