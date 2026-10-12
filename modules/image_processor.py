@@ -77,6 +77,13 @@ if TORCH_AVAILABLE:
 anime2sketch_model = None
 
 
+def _safe_thinning(binary):
+    if not hasattr(cv2, "ximgproc") or not hasattr(cv2.ximgproc, "thinning"):
+        print("警告: OpenCV ximgproc 不可用，骨架提取模式将自动回退到所有轮廓模式")
+        return None
+    return cv2.ximgproc.thinning(binary, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+
+
 def get_anime2sketch_model():
     """加载或获取缓存的 Anime2Sketch 模型"""
     global anime2sketch_model
@@ -437,9 +444,13 @@ def process_image_anime2sketch(file_path, simplify_eps, spline_smoothness, previ
         
         # 提取轮廓
         if "骨架提取" in contour_mode:
-            skeleton = cv2.ximgproc.thinning(binary, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
-            contours, _ = cv2.findContours(skeleton, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-            print(f"  [骨架模式] {len(contours)} 条")
+            skeleton = _safe_thinning(binary)
+            if skeleton is not None:
+                contours, _ = cv2.findContours(skeleton, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                print(f"  [骨架模式] {len(contours)} 条")
+            else:
+                contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                print(f"  [回退到所有轮廓] {len(contours)} 条")
         elif "所有轮廓" in contour_mode:
             contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
             print(f"  [所有轮廓] {len(contours)} 条")

@@ -7,6 +7,12 @@ import cv2
 import numpy as np
 
 
+def _safe_thinning(mask):
+    if not hasattr(cv2, "ximgproc") or not hasattr(cv2.ximgproc, "thinning"):
+        raise RuntimeError("当前 OpenCV 缺少 ximgproc.thinning，请安装 opencv-contrib-python。")
+    return cv2.ximgproc.thinning(mask, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+
+
 def thin_contours_to_skeleton(contours, image_shape):
     """将轮廓细化为单线骨架"""
     try:
@@ -16,7 +22,7 @@ def thin_contours_to_skeleton(contours, image_shape):
         for contour in contours:
             cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
         
-        skeleton = cv2.ximgproc.thinning(mask, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+        skeleton = _safe_thinning(mask)
         
         new_contours, _ = cv2.findContours(skeleton, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         
