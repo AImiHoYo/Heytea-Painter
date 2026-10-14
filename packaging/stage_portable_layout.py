@@ -14,6 +14,34 @@ import sys
 from pathlib import Path
 
 
+def _configure_stdio() -> None:
+    """Keep status lines from crashing Windows CI consoles (cp1252).
+
+    GitHub windows-latest Python inherits a cp1252 stdout. A non-ASCII
+    print then raises UnicodeEncodeError and fails the packaging job.
+    Prefer UTF-8; if the stream cannot be switched, replace unencodable
+    characters instead of aborting the build.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            try:
+                reconfigure(errors="replace")
+            except (OSError, ValueError):
+                pass
+
+
+def _log(message: str) -> None:
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(message.encode("ascii", errors="replace").decode("ascii"))
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Paths relative to repo root to copy into the portable layout.
@@ -155,16 +183,17 @@ def main(argv: list[str] | None = None) -> int:
     if stage_dir.name != folder_name:
         stage_dir = stage_dir / folder_name
 
-    print(f"Staging portable layout → {stage_dir}")
+    _configure_stdio()
+    _log(f"Staging portable layout -> {stage_dir}")
     stage(stage_dir, version=version)
-    print(f"Staged OK ({stage_dir})")
+    _log(f"Staged OK ({stage_dir})")
 
     if args.zip is not None:
         zip_path = args.zip
         if str(zip_path) in ("", "auto"):
             zip_path = ROOT / "dist" / f"{folder_name}-bootstrap.zip"
         out = make_zip(stage_dir, Path(zip_path))
-        print(f"Wrote {out} ({out.stat().st_size} bytes)")
+        _log(f"Wrote {out} ({out.stat().st_size} bytes)")
     return 0
 
 
