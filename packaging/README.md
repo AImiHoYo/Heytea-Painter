@@ -16,7 +16,7 @@ End users: unzip → place `models\netG.pth` → run `start.bat`.
 Two artifact flavors:
 
 1. **bootstrap** — sources + launchers only. User needs Python 3.10+ once to run `setup_env.bat`.
-2. **oneclick (Embed)** — same layout plus an embeddable CPython under `env\` with pip deps (CPU torch). Matches `start.bat` looking for `env\python.exe`.
+2. **oneclick (Embed)** — same layout plus an embeddable CPython under `env\` with pip deps (CPU torch). The official embeddable zip has no Tcl/Tk; the script extracts the matching `tcltk.msi` from python.org (`_tkinter.pyd`, `tcl86t.dll`, `tk86t.dll`, `tcl\`, `Lib\tkinter`) so `customtkinter` imports. `start.bat` sets `TCL_LIBRARY` / `TK_LIBRARY` when that tree is present. Matches `start.bat` looking for `env\python.exe`.
 
 ## Maintainer: build locally
 
@@ -31,7 +31,10 @@ python3 packaging/stage_portable_layout.py --dest dist --zip auto
 ```powershell
 .\packaging\build_portable_zip.ps1 -Mode Bootstrap
 .\packaging\build_portable_zip.ps1 -Mode Embed
+.\packaging\build_portable_zip.ps1 -Mode Embed -EmbedProfile TkSmoke
 ```
+
+`TkSmoke` installs only `customtkinter` and checks `import tkinter` / `tkinter.Tcl()` / `import customtkinter`. It does not build the fat zip.
 
 Outputs under `dist/`:
 
@@ -42,8 +45,8 @@ Outputs under `dist/`:
 
 Workflow: `.github/workflows/portable-windows.yml`
 
-- On PR / push to `main`: upload zip artifacts.
-- On tag `v*` (e.g. `v1.1.4`): attach zip(s) to the GitHub Release. If the one-click job fails, the bootstrap zip is still attached.
+- On PR / push to `main`: upload the bootstrap zip, and on Windows run Embed `TkSmoke` (embeddable Python + official Tcl/Tk + `customtkinter` import).
+- On tag `v*` (e.g. `v1.1.4`): build the fat one-click zip (same Tcl/Tk step, plus torch) and attach zip(s) to the GitHub Release. If the one-click job fails, the bootstrap zip is still attached. Re-uploading a tag overwrites existing assets (`overwrite_files`).
 
 Maintainer release checklist:
 

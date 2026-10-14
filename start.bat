@@ -34,6 +34,11 @@ if not defined PYTHON_EXE (
     if exist "%~dp0env\python.exe" (
         set "PYTHON_EXE=%~dp0env\python.exe"
         echo [INFO] 使用本地便携环境: env\
+        REM Embeddable CPython has no registry Tcl/Tk. Point at the vendored tree.
+        if exist "%~dp0env\tcl\tcl8.6\init.tcl" (
+            set "TCL_LIBRARY=%~dp0env\tcl\tcl8.6"
+            set "TK_LIBRARY=%~dp0env\tcl\tk8.6"
+        )
     )
 )
 if not defined PYTHON_EXE (

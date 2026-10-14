@@ -5,6 +5,7 @@
 - GitHub Releases 可直接下载 Windows 便携 zip（非安装程序）；模型权重仍需自行放入 `models\netG.pth`
 - `start.bat`：兼容 `env\python.exe`（嵌入式）与 `env\Scripts\python.exe`（venv）；默认启动正式 Qt 入口 `heytea_qt.py`
 - `setup_env.bat`：补齐 Windows 键鼠依赖（`pynput` / `pydirectinput` / `keyboard`）
+- **一键包补齐 Tcl/Tk**：官方 embeddable Python 不含 tkinter；打包时从同版本 `tcltk.msi` 放入 `env\`（`_tkinter.pyd`、`tcl86t.dll`、`tk86t.dll`、`tcl\`、`Lib\tkinter`），`customtkinter` 可导入。`start.bat` 在存在该目录时设置 `TCL_LIBRARY` / `TK_LIBRARY`
 
 ## 已知问题
 - 首次加载模型仍需等待；缓存仅在同图同推理键下有效（沿用 v1.1.2）
