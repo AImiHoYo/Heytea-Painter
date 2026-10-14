@@ -1,5 +1,14 @@
 /*.spec
 build/
 dist/
-__pycache__/
-*.pyc
+logs/*.log
+!logs/.gitkeep
+config/settings.json
+models/lineart_anime.pth
+models/*.pth
+!models/.gitkeep
+
+# Agent-only prompts and private process notes (never publish)
+AUTOCLAW_PROMPT*.md
+AGENTS.md
+ARCHITECTURE_NOTES.md
