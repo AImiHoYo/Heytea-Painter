@@ -1,6 +1,7 @@
 /*.spec
 build/
 dist/
+__pycache__/
 logs/*.log
 !logs/.gitkeep
 config/settings.json
