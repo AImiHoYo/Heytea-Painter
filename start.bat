@@ -9,24 +9,50 @@ echo Heytea Painter 启动脚本
 echo ====================================
 echo.
 
-if not exist "env\" (
-    echo [ERROR] env 文件夹不存在！
-    echo 请先运行 setup_env.bat 创建环境
-    echo.
-    pause
-    exit /b 1
+set "ENV_NAME=heytea-painter"
+set "PYTHON_EXE="
+
+REM Prefer CONDA_ROOT, then common Miniconda / Anaconda locations
+if not defined CONDA_ROOT (
+    if exist "C:\Users\a1234\Projects\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=C:\Users\a1234\Projects\miniconda3"
+    if exist "%USERPROFILE%\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\miniconda3"
+    if exist "%USERPROFILE%\Miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\Miniconda3"
+    if exist "%USERPROFILE%\anaconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\anaconda3"
+    if exist "%LOCALAPPDATA%\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%LOCALAPPDATA%\miniconda3"
 )
 
-if not exist "env\python.exe" (
-    echo [ERROR] Python 未找到！
-    echo 环境可能损坏，请重新运行 setup_portable.bat
+if defined CONDA_ROOT (
+    if exist "%CONDA_ROOT%\envs\%ENV_NAME%\python.exe" (
+        set "PYTHON_EXE=%CONDA_ROOT%\envs\%ENV_NAME%\python.exe"
+        echo [INFO] 使用 conda 环境: %ENV_NAME%
+        echo        %PYTHON_EXE%
+    )
+)
+
+REM Fallback: portable local env\
+if not defined PYTHON_EXE (
+    if exist "%~dp0env\python.exe" (
+        set "PYTHON_EXE=%~dp0env\python.exe"
+        echo [INFO] 使用本地便携环境: env\
+    )
+)
+
+if not defined PYTHON_EXE (
+    echo [ERROR] 未找到可用的 Python 环境。
+    echo.
+    echo 未检测到 conda 环境 "%ENV_NAME%"，本地 env\ 也不存在。
+    echo.
+    echo 请先任选其一:
+    echo   1. 安装 Miniconda，创建环境 heytea-painter，或设置 CONDA_ROOT
+    echo   2. 运行 setup_env.bat 创建便携 env\
     echo.
     pause
     exit /b 1
 )
+echo.
 
 echo [1/3] 检查 Python 环境...
-"%~dp0env\python.exe" --version
+"%PYTHON_EXE%" --version
 if errorlevel 1 (
     echo [ERROR] Python 执行失败！
     pause
@@ -53,7 +79,7 @@ echo [3/3] 启动 Heytea Painter...
 echo 提示: 绘画时请查看本窗口的输出信息
 echo.
 
-"%~dp0env\python.exe" heytea_modern.py
+"%PYTHON_EXE%" heytea_modern.py
 
 if errorlevel 1 (
     echo.

@@ -1,16 +1,5 @@
-"""
-兼容入口：保留旧入口名，内部转发到现代化主界面。
-"""
+"""已弃用。请使用 heytea_modern.py 启动 Heytea Painter。"""
+import sys
 
-from heytea_modern import ModernDrawingApp, ctk
-
-
-def main():
-    root = ctk.CTk()
-    app = ModernDrawingApp(root)
-    root.mainloop()
-    return app
-
-
-if __name__ == "__main__":
-    main()
+print("main.py 已弃用，请使用 heytea_modern.py 或 start.command 启动。")
+sys.exit(1)

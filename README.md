@@ -1,23 +1,6 @@
 # Heytea-Painter
 Automatically add drawing elements by extracting edges.  
   ****
-## 发布范围与正式版基线
-
-- 首发目标平台：**Windows 桌面端**
-- 主入口：`heytea_modern.py`（`main.py` 仅保留兼容转发）
-- 正式版验收标准：
-  - 三种线条提取模式可正常生成预览
-  - 三种绘画方式可启动并执行坐标标定流程
-  - 在缺少模型、图像损坏、OpenCV 缺少扩展时可给出可恢复提示
-  - CI 可完成构建、冒烟校验并产出可下载构建物（含 checksum）
-
-## 版本与发布
-
-- 版本号文件：`VERSION`
-- CI 会在 `main` 分支 PR/Push 执行构建和冒烟校验
-- 当推送标签 `v*`（例如 `v1.0.0`）时，会自动创建 GitHub Release 并上传 `dist/*` 产物
-
-  ****
 一键启动包v2(修复了不同分辨率以及DPI情况下的绘画问题)：  
 https://pan.quark.cn/s/ff787761af03  
 一键启动包v1：  
@@ -32,7 +15,7 @@ https://pan.quark.cn/s/b90824f581b1
 
 请从 **[Anime2Sketch](https://github.com/Mukosame/Anime2Sketch)** 下载 `netG.pth` 文件，并将其放置在 `models/` 文件夹下  
 你也可以点击这里**直接下载**模型文件：
-[**netG.pth**](https://drive.google.com/drive/folders/1Srf-WYUixK0wiUddc9y3pNKHHno5PN6R)  
+[**netG.pth**](https://drive.google.com/file/d/1cf90_fPW-elGOKu5mTXT5N1dum-XY_46/view)  
   
 ### 2. 安装环境
 请先运行`setup_env.bat`安装虚拟环境到本目录  
