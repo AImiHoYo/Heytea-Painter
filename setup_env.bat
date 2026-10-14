@@ -56,13 +56,15 @@ python -m pip install --upgrade pip
 
 REM Install packages
 pip install customtkinter==5.2.2
-pip install opencv-python==4.8.1.78
+pip install pyside6==6.7.3
+pip install opencv-contrib-python==4.8.1.78
 pip install pillow==10.1.0
-pip install numpy==1.26.2
+pip install numpy==1.24.3
 pip install scipy==1.11.4
 pip install torch==2.1.0 torchvision==0.16.0 --index-url https://download.pytorch.org/whl/cpu
 pip install pyautogui==0.9.54
 pip install screeninfo==0.8.1
+pip install huggingface_hub==0.25.2
 
 if errorlevel 1 (
     echo.
