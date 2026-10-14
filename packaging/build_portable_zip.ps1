@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   Modes:
-    Bootstrap — app sources + start.bat / setup_env.bat (no Python runtime). Small; user runs setup_env.bat once.
-    Embed     — downloads Python embeddable into env\, pip-installs deps (one-click). Large (~torch).
+    Bootstrap - app sources + start.bat / setup_env.bat (no Python runtime). Small; user runs setup_env.bat once.
+    Embed     - downloads Python embeddable into env\, pip-installs deps (one-click). Large (~torch).
 
   Model weights (netG.pth) are never packaged.
 
@@ -24,6 +24,20 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# windows-latest consoles are cp1252. Child Python inherits that and crashes
+# on non-ASCII prints (UnicodeEncodeError). Force UTF-8 before any output.
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+try {
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [Console]::OutputEncoding = $utf8
+    [Console]::InputEncoding = $utf8
+    $OutputEncoding = $utf8
+} catch {
+    Write-Host "Warning: could not set console UTF-8 ($($_.Exception.Message))"
+}
+
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $Root
 
@@ -38,7 +52,7 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $FolderName = "Heytea-Painter-Windows-Portable-$Version"
 $Stage = Join-Path $OutDir $FolderName
 
-Write-Host "==> Staging sources ($Mode) → $Stage"
+Write-Host "==> Staging sources ($Mode) -> $Stage"
 python (Join-Path $Root "packaging\stage_portable_layout.py") --dest $Stage --version $Version
 if ($LASTEXITCODE -ne 0) { throw "stage_portable_layout.py failed" }
 

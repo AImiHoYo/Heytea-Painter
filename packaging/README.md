@@ -43,7 +43,7 @@ Outputs under `dist/`:
 Workflow: `.github/workflows/portable-windows.yml`
 
 - On PR / push to `main`: upload zip artifacts.
-- On tag `v*` (e.g. `v1.1.4`): attach zip(s) to the GitHub Release.
+- On tag `v*` (e.g. `v1.1.4`): attach zip(s) to the GitHub Release. If the one-click job fails, the bootstrap zip is still attached.
 
 Maintainer release checklist:
 

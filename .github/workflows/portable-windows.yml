@@ -32,7 +32,13 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: cp1252 stdout regression
+        run: python tests/test_portable_stdio.py
+
       - name: Stage and zip (bootstrap)
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           mkdir -p dist
@@ -70,7 +76,15 @@ jobs:
 
       - name: Build one-click portable zip
         shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
         run: |
+          # cp1252 is the default console code page on windows-latest.
+          $utf8 = [System.Text.UTF8Encoding]::new($false)
+          [Console]::OutputEncoding = $utf8
+          [Console]::InputEncoding = $utf8
+          $OutputEncoding = $utf8
           .\packaging\build_portable_zip.ps1 -Mode Embed
 
       - name: Upload one-click artifact
@@ -85,11 +99,9 @@ jobs:
   publish-release:
     name: Attach portable zips to GitHub Release
     needs: [bootstrap-zip, oneclick-zip]
-    if: >
-      always()
-      && startsWith(github.ref, 'refs/tags/v')
-      && needs.bootstrap-zip.result == 'success'
-      && (needs.oneclick-zip.result == 'success' || needs.oneclick-zip.result == 'skipped')
+    # Bootstrap is enough to publish. If the fat one-click job fails, still
+    # attach the bootstrap zip instead of leaving the tag with no Release.
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.bootstrap-zip.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download bootstrap
