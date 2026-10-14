@@ -7,6 +7,7 @@ config/settings.json
 models/lineart_anime.pth
 models/*.pth
 !models/.gitkeep
+packaging/.cache/
 
 # Agent-only prompts and private process notes (never publish)
 AUTOCLAW_PROMPT*.md
