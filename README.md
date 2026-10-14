@@ -7,7 +7,7 @@ Automatically add drawing elements by extracting edges.
 
 | 资源名 | 说明 |
 |--------|------|
-| `Heytea-Painter-Windows-Portable-*-oneclick.zip` | 一键包：已含嵌入式 Python（`env\`），解压后放模型即可 `start.bat` |
+| `Heytea-Painter-Windows-Portable-*-oneclick.zip` | 一键包：已含嵌入式 Python（`env\`）和 Tcl/Tk（CustomTkinter 备用界面需要），解压后放模型即可 `start.bat` |
 | `Heytea-Painter-Windows-Portable-*-bootstrap.zip` | 引导包：需本机 Python 3.10+，先运行 `setup_env.bat` 再 `start.bat` |
 
 解压后请将 **`netG.pth`** 放到 `models\`（权重不随 zip 分发，见下方「下载模型」）。

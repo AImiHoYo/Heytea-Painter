@@ -58,6 +58,36 @@ jobs:
             dist/*-bootstrap.zip.sha256
           if-no-files-found: error
 
+  embed-tk-smoke:
+    name: Embeddable tkinter smoke
+    # The fat one-click zip stays tag-only. This job still runs Embed mode on
+    # windows-latest and fails if customtkinter cannot import tkinter.
+    if: >
+      github.event_name == 'pull_request'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      || (github.event_name == 'workflow_dispatch' && !inputs.build_oneclick)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python (host helper)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Smoke customtkinter against embeddable Python + Tcl/Tk
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
+        run: |
+          $utf8 = [System.Text.UTF8Encoding]::new($false)
+          [Console]::OutputEncoding = $utf8
+          [Console]::InputEncoding = $utf8
+          $OutputEncoding = $utf8
+          .\packaging\build_portable_zip.ps1 -Mode Embed -EmbedProfile TkSmoke
+
   oneclick-zip:
     name: Portable one-click zip (embeddable Python)
     # Fat zip (embeddable Python + torch) only on Release tags or manual dispatch.
@@ -121,4 +151,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
+          # Re-pushing an existing tag (v1.1.4 already has the bootstrap zip)
+          # must replace that asset and add the one-click zip.
+          overwrite_files: true
           generate_release_notes: true

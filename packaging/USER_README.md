@@ -8,7 +8,7 @@
 
 1. 解压到任意英文或中文路径（避免极端特殊字符）。
 2. 下载 `netG.pth`，放到本目录的 `models\` 下（见下方「模型」）。
-3. 双击 `start.bat` 启动。
+3. 双击 `start.bat` 启动。一键包已带上与嵌入式 Python 同版本的 Tcl/Tk，备用 CustomTkinter 界面可以导入。
 
 ### B. 引导包（zip 内没有 `env\`）
 

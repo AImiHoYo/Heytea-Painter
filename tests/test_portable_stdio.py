@@ -59,6 +59,29 @@ def _cp1252_stream(buf: io.BytesIO) -> io.TextIOWrapper:
     return stream
 
 
+def test_embed_vendors_matching_tcltk() -> None:
+    """Embed mode must vendor official Tcl/Tk; embeddable CPython has no tkinter."""
+    text = PS1_SCRIPT.read_text(encoding="utf-8")
+    for needle in (
+        "amd64/tcltk.msi",
+        "_tkinter.pyd",
+        "tcl86t.dll",
+        "tk86t.dll",
+        "TCL_LIBRARY",
+        "TK_LIBRARY",
+        "tkinter.Tcl()",
+        "customtkinter",
+        "EmbedProfile TkSmoke",
+    ):
+        if needle not in text:
+            _fail(f"{PS1_SCRIPT.name} missing {needle}")
+    bat = (ROOT / "start.bat").read_text(encoding="utf-8")
+    if "TCL_LIBRARY" not in bat or "TK_LIBRARY" not in bat:
+        _fail("start.bat must set TCL_LIBRARY and TK_LIBRARY for the vendored Tcl/Tk tree")
+    if "env\\tcl\\tcl8.6\\init.tcl" not in bat:
+        _fail("start.bat must only point TCL_LIBRARY at env\\tcl\\tcl8.6")
+
+
 def test_log_sources_are_ascii() -> None:
     _assert_lines_ascii(STAGE_SCRIPT, ("print(", "_log("))
     _assert_lines_ascii(PS1_SCRIPT, ("Write-Host",))
@@ -135,6 +158,7 @@ def test_subprocess_cp1252_env() -> None:
 
 
 def main() -> int:
+    test_embed_vendors_matching_tcltk()
     test_log_sources_are_ascii()
     test_main_survives_fixed_cp1252_stdout()
     test_subprocess_cp1252_env()
