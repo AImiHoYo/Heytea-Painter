@@ -1,0 +1,15 @@
+# Windows portable / setup_env.bat dependency pins.
+# Torch CPU wheels: install with
+#   pip install torch==2.1.0 torchvision==0.16.0 --index-url https://download.pytorch.org/whl/cpu
+customtkinter==5.2.2
+pyside6==6.7.3
+opencv-contrib-python==4.8.1.78
+pillow==10.1.0
+numpy==1.24.3
+scipy==1.11.4
+pyautogui==0.9.54
+screeninfo==0.8.1
+huggingface_hub==0.25.2
+pynput==1.7.6
+pydirectinput==1.0.4
+keyboard==0.13.5

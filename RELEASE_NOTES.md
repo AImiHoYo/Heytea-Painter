@@ -1,16 +1,17 @@
-# Release Notes — v1.1.3
+# Release Notes — v1.1.4
 
 ## 变更摘要
-- **识图缓存可观测**：Anime2Sketch / LineartAnime 预览边图缓存的每次命中 / 未命中都写入日志，并给出累计命中率（如「Anime2Sketch 累计 3/5 命中（60%）」）；滑条拖动只重跑轮廓、不算未命中
-- **强制重推理**：提取卡片新增「强制重推理（清缓存）」按钮（仅 AI 方法显示），怀疑缓存过期时一键清空边图缓存并立即重跑网络；经典方法（Pencil/Canny）不显示
-- **分块策略可视化**：「路径优化」卡片新增「显示分块网格 [预览]」开关（默认关）——按当前分块边长（0=自动，与落笔规划 `order_paths_bbox_chunks` 同一套切块逻辑）在红线预览上叠淡色网格；新设置键 `show_chunk_grid`
-- **简单模式更聚焦**：提取方法在简单模式只保留 Anime2Sketch / LineartAnime，Pencil/Canny 收进高级模式；当前方法被隐藏时自动切到 Anime2Sketch 并提示可用「一键推荐」，切回高级恢复四项
-- 冒烟测试补充：缓存命中率统计、缓存复用与强制重推理、分块网格几何与落图、`show_chunk_grid` 归一化、Qt 简单模式候选值切换（34 → 39 项）
+- **Windows 便携 zip 打包**：新增 `packaging/` 脚本与 `portable-windows` CI，可产出引导包（bootstrap）与一键包（embeddable Python + `env\`）
+- GitHub Releases 可直接下载 Windows 便携 zip（非安装程序）；模型权重仍需自行放入 `models\netG.pth`
+- `start.bat`：兼容 `env\python.exe`（嵌入式）与 `env\Scripts\python.exe`（venv）；默认启动正式 Qt 入口 `heytea_qt.py`
+- `setup_env.bat`：补齐 Windows 键鼠依赖（`pynput` / `pydirectinput` / `keyboard`）
 
 ## 已知问题
 - 首次加载模型仍需等待；缓存仅在同图同推理键下有效（沿用 v1.1.2）
 - 强制重推理只清边图缓存，模型本身仍常驻（属预期）
+- 一键 zip 体积较大（含 CPU PyTorch），CI 仅在 `v*` 标签或手动 workflow 构建
 
 ## 升级注意事项
-- 启动：`./start.sh`
-- 设置新增键：`show_chunk_grid`（缺省 false）
+- Windows：从 [Releases](https://github.com/AImiHoYo/Heytea-Painter/releases) 下载便携 zip → 解压 → 放置 `models\netG.pth` → `start.bat`
+- 引导包需先运行 `setup_env.bat`（需本机 Python 3.10+）
+- 网盘一键包仍可用作备选（见 README）

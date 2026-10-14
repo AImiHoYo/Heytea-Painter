@@ -1,33 +1,55 @@
 # Heytea-Painter
-Automatically add drawing elements by extracting edges.  
-  ****
-一键启动包v2(修复了不同分辨率以及DPI情况下的绘画问题)：  
+Automatically add drawing elements by extracting edges.
+
+## Windows 下载（推荐）
+
+从 **[GitHub Releases](https://github.com/AImiHoYo/Heytea-Painter/releases)** 下载最新 **Windows 便携 zip**（非 `.exe` 安装包）：
+
+| 资源名 | 说明 |
+|--------|------|
+| `Heytea-Painter-Windows-Portable-*-oneclick.zip` | 一键包：已含嵌入式 Python（`env\`），解压后放模型即可 `start.bat` |
+| `Heytea-Painter-Windows-Portable-*-bootstrap.zip` | 引导包：需本机 Python 3.10+，先运行 `setup_env.bat` 再 `start.bat` |
+
+解压后请将 **`netG.pth`** 放到 `models\`（权重不随 zip 分发，见下方「下载模型」）。
+
+维护者如何打 zip / CI 如何挂到 Release：见 [`packaging/README.md`](packaging/README.md)。
+
+### 备选：网盘一键启动包
+
+一键启动包 v2（修复了不同分辨率以及 DPI 情况下的绘画问题）：  
 https://pan.quark.cn/s/ff787761af03  
-一键启动包v1：  
-https://pan.quark.cn/s/b90824f581b1  
-# 使用方法：
-  ****
-建议在系统DPI缩放100%的情况下使用，高DPI缩放会导致程序绘画区域不能完全覆盖画布  
-  ****
+一键启动包 v1：  
+https://pan.quark.cn/s/b90824f581b1
+
+---
+
+# 使用方法
+
+建议在系统 DPI 缩放 100% 的情况下使用，高 DPI 缩放会导致程序绘画区域不能完全覆盖画布。
+
 ### 1. 下载模型
 
 本项目依赖的模型文件 (`netG.pth`) 由 [Anime2Sketch](https://github.com/Mukosame/Anime2Sketch) 提供。
 
-请从 **[Anime2Sketch](https://github.com/Mukosame/Anime2Sketch)** 下载 `netG.pth` 文件，并将其放置在 `models/` 文件夹下  
+请从 **[Anime2Sketch](https://github.com/Mukosame/Anime2Sketch)** 下载 `netG.pth` 文件，并将其放置在 `models/` 文件夹下。  
 你也可以点击这里**直接下载**模型文件：
-[**netG.pth**](https://drive.google.com/file/d/1cf90_fPW-elGOKu5mTXT5N1dum-XY_46/view)  
-  
+[**netG.pth**](https://drive.google.com/file/d/1cf90_fPW-elGOKu5mTXT5N1dum-XY_46/view)
+
 ### 2. 安装环境
-请先运行`setup_env.bat`安装虚拟环境到本目录  
-  
+
+- **一键 zip**：已含 `env\`，跳过本步。  
+- **引导 zip / 源码**：请先运行 `setup_env.bat` 安装虚拟环境到本目录。
+
 ### 3. 启动
-双击`start.bat`启动  
-  
+
+双击 `start.bat` 启动（正式入口为 Qt：`heytea_qt.py`）。
+
 ### 4. 操作方法
-请遵循以下步骤来获得最佳的绘画效果
+
+请遵循以下步骤来获得最佳的绘画效果。
 
 > **准备工作：**
-> 建议你先将图片裁剪为 **3:4** 的比例。这可以更好地适配小程序最终的画布大小，防止图像拉伸
+> 建议你先将图片裁剪为 **3:4** 的比例。这可以更好地适配小程序最终的画布大小，防止图像拉伸。
 
 ### 步骤 1：加载图片并选择模式
 

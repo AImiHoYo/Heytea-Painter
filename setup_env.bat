@@ -54,7 +54,7 @@ call env\Scripts\activate.bat
 REM Upgrade pip
 python -m pip install --upgrade pip
 
-REM Install packages
+REM Install packages (keep in sync with packaging/requirements-windows.txt)
 pip install customtkinter==5.2.2
 pip install pyside6==6.7.3
 pip install opencv-contrib-python==4.8.1.78
@@ -65,6 +65,9 @@ pip install torch==2.1.0 torchvision==0.16.0 --index-url https://download.pytorc
 pip install pyautogui==0.9.54
 pip install screeninfo==0.8.1
 pip install huggingface_hub==0.25.2
+pip install pynput==1.7.6
+pip install pydirectinput==1.0.4
+pip install keyboard==0.13.5
 
 if errorlevel 1 (
     echo.

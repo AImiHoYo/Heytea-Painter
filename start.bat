@@ -14,11 +14,11 @@ set "PYTHON_EXE="
 
 REM Prefer CONDA_ROOT, then common Miniconda / Anaconda locations
 if not defined CONDA_ROOT (
-    if exist "C:\Users\a1234\Projects\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=C:\Users\a1234\Projects\miniconda3"
     if exist "%USERPROFILE%\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\miniconda3"
     if exist "%USERPROFILE%\Miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\Miniconda3"
     if exist "%USERPROFILE%\anaconda3\Scripts\conda.exe" set "CONDA_ROOT=%USERPROFILE%\anaconda3"
     if exist "%LOCALAPPDATA%\miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%LOCALAPPDATA%\miniconda3"
+    if exist "%LOCALAPPDATA%\Miniconda3\Scripts\conda.exe" set "CONDA_ROOT=%LOCALAPPDATA%\Miniconda3"
 )
 
 if defined CONDA_ROOT (
@@ -29,11 +29,17 @@ if defined CONDA_ROOT (
     )
 )
 
-REM Fallback: portable local env\
+REM Fallback: portable local env\ (embeddable python.exe OR venv Scripts\python.exe)
 if not defined PYTHON_EXE (
     if exist "%~dp0env\python.exe" (
         set "PYTHON_EXE=%~dp0env\python.exe"
         echo [INFO] 使用本地便携环境: env\
+    )
+)
+if not defined PYTHON_EXE (
+    if exist "%~dp0env\Scripts\python.exe" (
+        set "PYTHON_EXE=%~dp0env\Scripts\python.exe"
+        echo [INFO] 使用本地虚拟环境: env\Scripts\
     )
 )
 
@@ -43,8 +49,9 @@ if not defined PYTHON_EXE (
     echo 未检测到 conda 环境 "%ENV_NAME%"，本地 env\ 也不存在。
     echo.
     echo 请先任选其一:
-    echo   1. 安装 Miniconda，创建环境 heytea-painter，或设置 CONDA_ROOT
-    echo   2. 运行 setup_env.bat 创建便携 env\
+    echo   1. 从 GitHub Releases 下载带 env 的 Windows 一键 zip
+    echo   2. 运行 setup_env.bat 创建便携 env\（需已安装 Python 3.10+）
+    echo   3. 安装 Miniconda，创建环境 heytea-painter，或设置 CONDA_ROOT
     echo.
     pause
     exit /b 1
@@ -79,7 +86,12 @@ echo [3/3] 启动 Heytea Painter...
 echo 提示: 绘画时请查看本窗口的输出信息
 echo.
 
-"%PYTHON_EXE%" heytea_modern.py
+REM Formal entry is Qt (heytea_qt.py); fall back to CustomTkinter if needed.
+if exist "%~dp0heytea_qt.py" (
+    "%PYTHON_EXE%" heytea_qt.py
+) else (
+    "%PYTHON_EXE%" heytea_modern.py
+)
 
 if errorlevel 1 (
     echo.
